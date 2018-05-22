@@ -1,5 +1,4 @@
 # ConfigSources
-LogicMonitor ConfigSources
 
 **Active Directory ConfigSource Suite - Installation Guide**
 
@@ -7,12 +6,7 @@ Step 1: Import PropertySource from repository (if not a new account): addCategor
 
 Step 2: Import ConfigSources - which use the hasCategory("MicrosoftDomainController") AppliesTo.
 
-Troubleshooting:
-
-Powershell remoting is used. You almost certainly need a domain admin credential for the collector account to query AD for this information (not fully tested.)
-
-
-Active Directory Configs:
+**Active Directory Configs:**
 
 Admin Groups: list all members of Administrators, Domain Admins, Enterprise Admins, Schema Admins
 
@@ -35,3 +29,7 @@ Password Policy: captures the default domain password policy and alerts when set
 Sites and Subnets: list all Active Directory Sites and Subnets
 
 Users: list all Active Directory users
+
+**Troubleshooting**:
+
+Powershell remoting is used. You almost certainly need a domain admin credential for the collector account to query AD for this information (not fully tested.)
