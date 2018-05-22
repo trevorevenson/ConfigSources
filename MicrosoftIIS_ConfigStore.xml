@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<feed  version="1.0" hasPendingRequests="false" >
+  <company></company>
+  <status>200</status>
+  <errmsg>OK</errmsg>
+  <interval>0</interval>
+    <entry type="predatasource">
+        <version>1525132885</version>
+        <name>MicrosoftIIS_ConfigStore</name>
+        <displayedas>Configuration Store</displayedas>
+        <description>Microsoft IIS Sites configuration information.</description>
+        <collector>script</collector>
+        <hasMultiInstances>false</hasMultiInstances>
+        <schedule>3600</schedule>
+        <appliesTo>hasCategory(&#34;MicrosoftIIS&#34;)</appliesTo>
+        <wildcardauto>false</wildcardauto>
+        <wildcardpersist>false</wildcardpersist>
+        <wildcardlinuxscript></wildcardlinuxscript>
+        <wildcardlinuxcmdline></wildcardlinuxcmdline>
+        <wildcardwinscript></wildcardwinscript>
+        <wildcardwincmdline></wildcardwincmdline>
+        <wildcardgroovyscript></wildcardgroovyscript>
+        <wildcardschedule>1440</wildcardschedule>
+        <wildcarddisable>false</wildcarddisable>
+        <wildcarddeleteinactive>false</wildcarddeleteinactive>
+        <agdmethod>none</agdmethod>
+        <agdparams></agdparams>
+        <group>IIS Configs</group>
+        <tags></tags>
+        <technology>https://docs.microsoft.com/en-us/powershell/module/iisadministration/get-iisconfigsection</technology>
+        <adlist><![CDATA[{"agdmethod":"none","agdparams":"","id":0,"filters":[],"params":{}}]]></adlist>
+        <schemaVersion>2</schemaVersion>
+        <dataSourceType>2</dataSourceType>
+        <attributes>
+        <attribute>
+            <name>scripttype</name>
+            <value>powerShell</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>scriptgroovy</name>
+            <value>#Script version 4.1 - better credential detection, integrated authentication, with commenting for usability
+
+#Format width of output
+mode con cols=120
+
+#Ingest hostname and credentials (if present) from LogicMonitor device properties
+$hostname = &#34;##SYSTEM.SYSNAME##&#34;;
+$wmi_user = &#34;##WMI.USER##&#34;;
+$wmi_pass = &#34;##WMI.PASS##&#34;;
+
+#Are WMI user/ pass set? -- e.g. are these device properties blank - or is there something useful present?
+if ( (($wmi_user -like &#39;*WMI.USER*&#39;) -and ($wmi_pass -like &#39;*WMI.PASS*&#39;)) -or (($wmi_user -eq &#39;&#39;) -and ($wmi_pass -eq &#39;&#39;)) )
+{
+    $use_credentials = $FALSE;
+    $method = &#34;Invoke-Command&#34;;
+}   
+
+else
+{
+    #Convert user/ password into a credential object
+    $use_credentials = $TRUE;
+    $method = &#34;Import-PSSession&#34;;
+
+    $remote_pass       = ConvertTo-SecureString -String $wmi_pass -AsPlainText -Force;
+    $remote_credential = New-Object -typename System.Management.Automation.PSCredential -argumentlist $wmi_user, $remote_pass;
+}
+
+#If we found credentials above, we will use them
+if ( $use_credentials ) {
+    #Establish a persistent session and import commands to the local collector
+    $session = New-PSSession -ComputerName $hostname -Authentication kerberos -Credential $remote_credential;
+    Import-PSSession $session -CommandName Get-IISAppPool -AllowClobber | Out-Null;
+
+    #Execute remote commands from the local collector
+    $pools = Get-IISConfigSection | Format-Table
+
+    $pools
+
+    Write-host &#34;Remote PowerShell via&#34; $method
+    
+    Remove-PSSession $session
+    
+    Exit
+}
+else {
+    #Attempt integrated authentication using collector service account in the absence of credentials
+    Invoke-Command -ComputerName $hostname -ScriptBlock { 
+        Get-IISConfigSection | Format-Table
+    } 
+    Write-host &#34;Remote PowerShell via&#34; $method
+        
+}
+
+Exit</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowsscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowscmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxcmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>csfileformat</name>
+            <value>arbitrary</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>cstimestampformat</name>
+            <value>yyyy-MM-dd hh:mm:ss z</value>
+            <comment></comment>
+        </attribute>
+        </attributes>
+        <datapoints>
+        <datapoint>
+            <name>AnyChange</name>
+            <dataType>1</dataType>
+            <type>2</type>
+            <postprocessormethod>none</postprocessormethod>
+            <postprocessorparam>{&#34;format&#34;:&#34;arbitrary&#34;,&#34;diff_check&#34;:{}}</postprocessorparam>
+            <usevalue></usevalue>
+            <alertexpr>= 1</alertexpr>
+            <alertmissing>1</alertmissing>
+            <alertsubject></alertsubject>
+            <alertbody></alertbody>
+            <description>A change was detected in the configuration of one or more Microsoft IIS Configuration Store components.</description>
+            <maxvalue>1</maxvalue>
+            <minvalue>0</minvalue>
+            <userparam1>ignore</userparam1>
+            <userparam2>true</userparam2>
+            <userparam3>60</userparam3>
+            <iscomposite>false</iscomposite>
+            <rpn></rpn>
+            <alertTransitionIval>0</alertTransitionIval>
+            <alertClearTransitionIval>0</alertClearTransitionIval>
+        </datapoint>
+        </datapoints>
+        <graphs>
+        </graphs>
+        <overviewgraphs>
+        </overviewgraphs>
+        <scripts>
+        </scripts>
+    </entry>
+</feed>
