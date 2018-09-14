@@ -6,6 +6,10 @@ Step 1: Import PropertySource from repository (if not a new account): addCategor
 
 Step 2: Import ConfigSources - which use the hasCategory("MicrosoftDomainController") AppliesTo.
 
+**Combined Configs:**
+
+Multiple configs within a suite are now available within the "Merged" folder - single file import is convenient!
+
 **Active Directory Configs:**
 
 Admin Groups: list all members of Administrators, Domain Admins, Enterprise Admins, Schema Admins
