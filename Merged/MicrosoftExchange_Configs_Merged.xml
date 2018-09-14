@@ -1,0 +1,1370 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<feed  version="1.0" hasPendingRequests="false" >
+	<company></company>
+	<status>200</status>
+	<errmsg>OK</errmsg>
+	<interval>0</interval>
+    <entry type="predatasource">
+        <version>1525131866</version>
+        <name>MicrosoftExchange_VirtualDirectories</name>
+        <displayedas>Virtual Directories</displayedas>
+        <description>Microsoft Exchange Server Virtual Directory configuration details. Includes ActiveSync, AutoDiscover, ECP, MAPI, OAB, OWA, PowerShell, and EWS virtual directory settings.</description>
+        <collector>script</collector>
+        <hasMultiInstances>false</hasMultiInstances>
+        <schedule>3600</schedule>
+        <appliesTo>hasCategory(&#34;MSExchange&#34;)</appliesTo>
+        <wildcardauto>false</wildcardauto>
+        <wildcardpersist>false</wildcardpersist>
+        <wildcardlinuxscript></wildcardlinuxscript>
+        <wildcardlinuxcmdline></wildcardlinuxcmdline>
+        <wildcardwinscript></wildcardwinscript>
+        <wildcardwincmdline></wildcardwincmdline>
+        <wildcardgroovyscript></wildcardgroovyscript>
+        <wildcardschedule>1440</wildcardschedule>
+        <wildcarddisable>false</wildcarddisable>
+        <wildcarddeleteinactive>false</wildcarddeleteinactive>
+        <agdmethod>none</agdmethod>
+        <agdparams></agdparams>
+        <group>Exchange Configs</group>
+        <tags></tags>
+        <technology>https://technet.microsoft.com/en-us/library/gg247612(v=exchg.160).aspx</technology>
+        <adlist><![CDATA[{"agdmethod":"none","agdparams":"","id":0,"filters":[],"params":{}}]]></adlist>
+        <schemaVersion>2</schemaVersion>
+        <dataSourceType>2</dataSourceType>
+        <attributes>
+        <attribute>
+            <name>scripttype</name>
+            <value>powerShell</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>scriptgroovy</name>
+            <value>#Script version 4.1 - better credential detection, integrated authentication, with commenting for usability
+
+#Format width of output
+mode con cols=120
+
+#Ingest hostname and credentials (if present) from LogicMonitor device properties
+$hostname = &#34;##SYSTEM.SYSNAME##&#34;;
+$wmi_user = &#34;##WMI.USER##&#34;;
+$wmi_pass = &#34;##WMI.PASS##&#34;;
+
+#Are WMI user/ pass set? -- e.g. are these device properties blank - or is there something useful present?
+if ( (($wmi_user -like &#39;*WMI.USER*&#39;) -and ($wmi_pass -like &#39;*WMI.PASS*&#39;)) -or (($wmi_user -eq &#39;&#39;) -and ($wmi_pass -eq &#39;&#39;)) )
+{
+    $use_credentials = $FALSE;
+    $method = &#34;Invoke-Command&#34;;
+}   
+
+else
+{
+    #Convert user/ password into a credential object
+    $use_credentials = $TRUE;
+    $method = &#34;Import-PSSession&#34;;
+
+    $remote_pass       = ConvertTo-SecureString -String $wmi_pass -AsPlainText -Force;
+    $remote_credential = New-Object -typename System.Management.Automation.PSCredential -argumentlist $wmi_user, $remote_pass;
+}
+
+#If we found credentials above, we will use them
+if ( $use_credentials ) {
+    #Establish a persistent session and import commands to the local collector
+    $session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://$hostname/PowerShell/ -Authentication Kerberos -Credential $remote_credential;
+
+    Import-PSSession $session -CommandName *VirtualDirectory* -AllowClobber | Out-Null;
+
+    #Execute remote commands from the local collector and collect output 
+    $activesync = Get-ActiveSyncVirtualDirectory;
+    $autodiscover = Get-AutodiscoverVirtualDirectory;
+    $ecp = Get-EcpVirtualDirectory;
+    $mapi = Get-MAPIVirtualDirectory;
+    $oab = Get-OABVirtualDirectory;
+    $owa = Get-OWAVirtualDirectory;
+    $powershell = Get-PowerShellVirtualDirectory;
+    $webservices = Get-WebServicesVirtualDirectory;
+    
+    #Output all Virtual Directory configurations but inject some descriptive headers in between.
+    Write-Host &#34;----------Exchange ActiveSync Virtual Directory----------&#34;;
+    $activesync | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID;
+
+    Write-Host &#34;----------Exchange Autodiscover Virtual Directory----------&#34;;
+    $autodiscover | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID
+
+    Write-Host &#34;----------Exchange Control Panel Virtual Directory----------&#34;;
+    $ecp | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID;
+
+    Write-Host &#34;----------Exchange MAPI Virtual Directory----------&#34;;
+    $mapi | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID;
+
+    Write-Host &#34;----------Exchange Outlook Address Book Virtual Directory----------&#34;;
+    $oab | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID;
+
+    Write-Host &#34;----------Exchange Outlook Web Access Virtual Directory----------&#34;;
+    $owa | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID;
+
+    Write-Host &#34;----------Exchange PowerShell Virtual Directory----------&#34;;
+    $powershell | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID;
+
+    Write-Host &#34;----------Exchange Web Services Virtual Directory----------&#34;;
+    $webservices | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID;
+
+    Write-host &#34;Remote PowerShell via&#34; $method
+    
+    Remove-PSSession $session
+    
+    Exit
+}
+else {
+    #Attempt integrated authentication using collector service account in the absence of credentials
+    $session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://$hostname/PowerShell/ -Authentication Kerberos
+
+    $activesync = Invoke-Command -Session $session -ScriptBlock {
+        Get-ActiveSyncVirtualDirectory;
+    }
+    $autodiscover = Invoke-Command -Session $session -ScriptBlock {
+        Get-AutodiscoverVirtualDirectory;
+    }
+    $ecp = Invoke-Command -Session $session -ScriptBlock {
+        Get-EcpVirtualDirectory;
+    }
+    $mapi = Invoke-Command -Session $session -ScriptBlock {
+        Get-MAPIVirtualDirectory;
+    }
+    $oab = Invoke-Command -Session $session -ScriptBlock {
+        Get-OABVirtualDirectory;
+    }
+    $owa = Invoke-Command -Session $session -ScriptBlock {
+        Get-OWAVirtualDirectory;
+    }
+    $powershell = Invoke-Command -Session $session -ScriptBlock {
+        Get-PowerShellVirtualDirectory;
+    }
+    $webservices = Invoke-Command -Session $session -ScriptBlock {
+        Get-WebServicesVirtualDirectory;
+    }
+
+    #Output all Virtual Directory configurations but inject some descriptive headers in between.
+    Write-Host &#34;----------Exchange ActiveSync Virtual Directory----------&#34;;
+    $activesync | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID;
+
+    Write-Host &#34;----------Exchange Autodiscover Virtual Directory----------&#34;;
+    $autodiscover | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID
+
+    Write-Host &#34;----------Exchange Control Panel Virtual Directory----------&#34;;
+    $ecp | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID;
+
+    Write-Host &#34;----------Exchange MAPI Virtual Directory----------&#34;;
+    $mapi | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID;
+
+    Write-Host &#34;----------Exchange Outlook Address Book Virtual Directory----------&#34;;
+    $oab | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID;
+
+    Write-Host &#34;----------Exchange Outlook Web Access Virtual Directory----------&#34;;
+    $owa | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID;
+
+    Write-Host &#34;----------Exchange PowerShell Virtual Directory----------&#34;;
+    $powershell | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID;
+
+    Write-Host &#34;----------Exchange Web Services Virtual Directory----------&#34;;
+    $webservices | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID;
+
+    Write-Host &#34;Remote PowerShell via&#34; $method
+
+    Remove-PSSession $session
+
+    Exit
+}
+
+Exit</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowsscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowscmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxcmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>csfileformat</name>
+            <value>arbitrary</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>cstimestampformat</name>
+            <value>yyyy-MM-dd hh:mm:ss z</value>
+            <comment></comment>
+        </attribute>
+        </attributes>
+        <datapoints>
+        <datapoint>
+            <name>AnyChange</name>
+            <dataType>1</dataType>
+            <type>2</type>
+            <postprocessormethod>none</postprocessormethod>
+            <postprocessorparam>{&#34;format&#34;:&#34;arbitrary&#34;,&#34;diff_check&#34;:{}}</postprocessorparam>
+            <usevalue></usevalue>
+            <alertexpr>= 1</alertexpr>
+            <alertmissing>1</alertmissing>
+            <alertsubject></alertsubject>
+            <alertbody></alertbody>
+            <description>A change was detected in the configuration of the Microsoft Exchange Server Virtual Directories.</description>
+            <maxvalue>1</maxvalue>
+            <minvalue>0</minvalue>
+            <userparam1>ignore</userparam1>
+            <userparam2>true</userparam2>
+            <userparam3>60</userparam3>
+            <iscomposite>false</iscomposite>
+            <rpn></rpn>
+            <alertTransitionIval>0</alertTransitionIval>
+            <alertClearTransitionIval>0</alertClearTransitionIval>
+        </datapoint>
+        </datapoints>
+        <graphs>
+        </graphs>
+        <overviewgraphs>
+        </overviewgraphs>
+        <scripts>
+        </scripts>
+    </entry>
+    <entry type="predatasource">
+        <version>1525131520</version>
+        <name>MicrosoftExchange_Transport</name>
+        <displayedas>Transport</displayedas>
+        <description>Microsoft Exchange Server Transport configuration details.</description>
+        <collector>script</collector>
+        <hasMultiInstances>false</hasMultiInstances>
+        <schedule>3600</schedule>
+        <appliesTo>hasCategory(&#34;MSExchange&#34;)</appliesTo>
+        <wildcardauto>false</wildcardauto>
+        <wildcardpersist>false</wildcardpersist>
+        <wildcardlinuxscript></wildcardlinuxscript>
+        <wildcardlinuxcmdline></wildcardlinuxcmdline>
+        <wildcardwinscript></wildcardwinscript>
+        <wildcardwincmdline></wildcardwincmdline>
+        <wildcardgroovyscript></wildcardgroovyscript>
+        <wildcardschedule>1440</wildcardschedule>
+        <wildcarddisable>false</wildcarddisable>
+        <wildcarddeleteinactive>false</wildcarddeleteinactive>
+        <agdmethod>none</agdmethod>
+        <agdparams></agdparams>
+        <group>Exchange Configs</group>
+        <tags></tags>
+        <technology>https://docs.microsoft.com/en-us/powershell/module/exchange/organization/get-transportconfig?view=exchange-ps</technology>
+        <adlist><![CDATA[{"agdmethod":"none","agdparams":"","id":0,"filters":[],"params":{}}]]></adlist>
+        <schemaVersion>2</schemaVersion>
+        <dataSourceType>2</dataSourceType>
+        <attributes>
+        <attribute>
+            <name>scripttype</name>
+            <value>powerShell</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>scriptgroovy</name>
+            <value>#Script version 4.1 - better credential detection, integrated authentication, with commenting for usability
+
+#Format width of output
+mode con cols=120
+
+#Ingest hostname and credentials (if present) from LogicMonitor device properties
+$hostname = &#34;##SYSTEM.SYSNAME##&#34;;
+$wmi_user = &#34;##WMI.USER##&#34;;
+$wmi_pass = &#34;##WMI.PASS##&#34;;
+
+#Are WMI user/ pass set? -- e.g. are these device properties blank - or is there something useful present?
+if ( (($wmi_user -like &#39;*WMI.USER*&#39;) -and ($wmi_pass -like &#39;*WMI.PASS*&#39;)) -or (($wmi_user -eq &#39;&#39;) -and ($wmi_pass -eq &#39;&#39;)) )
+{
+    $use_credentials = $FALSE;
+    $method = &#34;Invoke-Command&#34;;
+}   
+
+else
+{
+    #Convert user/ password into a credential object
+    $use_credentials = $TRUE;
+    $method = &#34;Import-PSSession&#34;;
+
+    $remote_pass       = ConvertTo-SecureString -String $wmi_pass -AsPlainText -Force;
+    $remote_credential = New-Object -typename System.Management.Automation.PSCredential -argumentlist $wmi_user, $remote_pass;
+}
+
+#If we found credentials above, we will use them
+if ( $use_credentials ) {
+    #Establish a persistent session and import commands to the local collector
+    $session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://$hostname/PowerShell/ -Authentication Kerberos -Credential $remote_credential;
+
+    Import-PSSession $session -CommandName Get-TransportConfig -AllowClobber | Out-Null;
+
+    #Execute remote commands from the local collector
+    Get-TransportConfig | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID | Format-List
+
+    Write-host &#34;Remote PowerShell via&#34; $method
+    
+    Remove-PSSession $session
+    
+    Exit
+}
+else {
+    #Attempt integrated authentication using collector service account in the absence of credentials
+    $session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://$hostname/PowerShell/ -Authentication Kerberos
+
+    $transport = Invoke-Command -Session $session -ScriptBlock { 
+        Get-TransportConfig 
+    }
+
+    $transport | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID
+    
+    Write-host &#34;Remote PowerShell via&#34; $method
+
+    Remove-PSSession $session
+
+    Exit
+        
+}
+
+Exit</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowsscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowscmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxcmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>csfileformat</name>
+            <value>arbitrary</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>cstimestampformat</name>
+            <value>yyyy-MM-dd hh:mm:ss z</value>
+            <comment></comment>
+        </attribute>
+        </attributes>
+        <datapoints>
+        <datapoint>
+            <name>AnyChange</name>
+            <dataType>1</dataType>
+            <type>2</type>
+            <postprocessormethod>none</postprocessormethod>
+            <postprocessorparam>{&#34;format&#34;:&#34;arbitrary&#34;,&#34;diff_check&#34;:{}}</postprocessorparam>
+            <usevalue></usevalue>
+            <alertexpr>= 1</alertexpr>
+            <alertmissing>1</alertmissing>
+            <alertsubject></alertsubject>
+            <alertbody></alertbody>
+            <description>A change was detected in the Microsoft Exchange Server Transport configuration.</description>
+            <maxvalue>1</maxvalue>
+            <minvalue>0</minvalue>
+            <userparam1>ignore</userparam1>
+            <userparam2>true</userparam2>
+            <userparam3>60</userparam3>
+            <iscomposite>false</iscomposite>
+            <rpn></rpn>
+            <alertTransitionIval>0</alertTransitionIval>
+            <alertClearTransitionIval>0</alertClearTransitionIval>
+        </datapoint>
+        </datapoints>
+        <graphs>
+        </graphs>
+        <overviewgraphs>
+        </overviewgraphs>
+        <scripts>
+        </scripts>
+    </entry>
+    <entry type="predatasource">
+        <version>1525131483</version>
+        <name>MicrosoftExchange_ThrottlingPolicy</name>
+        <displayedas>Throttling Policy</displayedas>
+        <description>Microsoft Exchange Server Throttling Policy details.</description>
+        <collector>script</collector>
+        <hasMultiInstances>false</hasMultiInstances>
+        <schedule>3600</schedule>
+        <appliesTo>hasCategory(&#34;MSExchange&#34;)</appliesTo>
+        <wildcardauto>false</wildcardauto>
+        <wildcardpersist>false</wildcardpersist>
+        <wildcardlinuxscript></wildcardlinuxscript>
+        <wildcardlinuxcmdline></wildcardlinuxcmdline>
+        <wildcardwinscript></wildcardwinscript>
+        <wildcardwincmdline></wildcardwincmdline>
+        <wildcardgroovyscript></wildcardgroovyscript>
+        <wildcardschedule>1440</wildcardschedule>
+        <wildcarddisable>false</wildcarddisable>
+        <wildcarddeleteinactive>false</wildcarddeleteinactive>
+        <agdmethod>none</agdmethod>
+        <agdparams></agdparams>
+        <group>Exchange Configs</group>
+        <tags></tags>
+        <technology>https://docs.microsoft.com/en-us/powershell/module/exchange/server-health-and-performance/get-throttlingpolicy?view=exchange-ps</technology>
+        <adlist><![CDATA[{"agdmethod":"none","agdparams":"","id":0,"filters":[],"params":{}}]]></adlist>
+        <schemaVersion>2</schemaVersion>
+        <dataSourceType>2</dataSourceType>
+        <attributes>
+        <attribute>
+            <name>scripttype</name>
+            <value>powerShell</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>scriptgroovy</name>
+            <value>#Script version 4.1 - better credential detection, integrated authentication, with commenting for usability
+
+#Format width of output
+mode con cols=120
+
+#Ingest hostname and credentials (if present) from LogicMonitor device properties
+$hostname = &#34;##SYSTEM.SYSNAME##&#34;;
+$wmi_user = &#34;##WMI.USER##&#34;;
+$wmi_pass = &#34;##WMI.PASS##&#34;;
+
+#Are WMI user/ pass set? -- e.g. are these device properties blank - or is there something useful present?
+if ( (($wmi_user -like &#39;*WMI.USER*&#39;) -and ($wmi_pass -like &#39;*WMI.PASS*&#39;)) -or (($wmi_user -eq &#39;&#39;) -and ($wmi_pass -eq &#39;&#39;)) )
+{
+    $use_credentials = $FALSE;
+    $method = &#34;Invoke-Command&#34;;
+}   
+
+else
+{
+    #Convert user/ password into a credential object
+    $use_credentials = $TRUE;
+    $method = &#34;Import-PSSession&#34;;
+
+    $remote_pass       = ConvertTo-SecureString -String $wmi_pass -AsPlainText -Force;
+    $remote_credential = New-Object -typename System.Management.Automation.PSCredential -argumentlist $wmi_user, $remote_pass;
+}
+
+#If we found credentials above, we will use them
+if ( $use_credentials ) {
+    #Establish a persistent session and import commands to the local collector
+    $session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://$hostname/PowerShell/ -Authentication Kerberos -Credential $remote_credential;
+
+    Import-PSSession $session -CommandName Get-ThrottlingPolicy -AllowClobber | Out-Null;
+
+    #Execute remote commands from the local collector
+    Get-ThrottlingPolicy | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID | Format-List
+
+    Write-host &#34;Remote PowerShell via&#34; $method
+    
+    Remove-PSSession $session
+    
+    Exit
+}
+else {
+    #Attempt integrated authentication using collector service account in the absence of credentials
+    $session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://$hostname/PowerShell/ -Authentication Kerberos
+
+    $policy = Invoke-Command -Session $session -ScriptBlock { 
+        Get-ThrottlingPolicy 
+    }
+
+    $policy | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID
+    
+    Write-host &#34;Remote PowerShell via&#34; $method
+
+    Remove-PSSession $session
+
+    Exit
+        
+}
+
+Exit</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowsscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowscmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxcmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>csfileformat</name>
+            <value>arbitrary</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>cstimestampformat</name>
+            <value>yyyy-MM-dd hh:mm:ss z</value>
+            <comment></comment>
+        </attribute>
+        </attributes>
+        <datapoints>
+        <datapoint>
+            <name>AnyChange</name>
+            <dataType>1</dataType>
+            <type>2</type>
+            <postprocessormethod>none</postprocessormethod>
+            <postprocessorparam>{&#34;format&#34;:&#34;arbitrary&#34;,&#34;diff_check&#34;:{}}</postprocessorparam>
+            <usevalue></usevalue>
+            <alertexpr>= 1</alertexpr>
+            <alertmissing>1</alertmissing>
+            <alertsubject></alertsubject>
+            <alertbody></alertbody>
+            <description>A change was detected in the Microsoft Exchange Server Throttling Policy.</description>
+            <maxvalue>1</maxvalue>
+            <minvalue>0</minvalue>
+            <userparam1>ignore</userparam1>
+            <userparam2>true</userparam2>
+            <userparam3>60</userparam3>
+            <iscomposite>false</iscomposite>
+            <rpn></rpn>
+            <alertTransitionIval>0</alertTransitionIval>
+            <alertClearTransitionIval>0</alertClearTransitionIval>
+        </datapoint>
+        </datapoints>
+        <graphs>
+        </graphs>
+        <overviewgraphs>
+        </overviewgraphs>
+        <scripts>
+        </scripts>
+    </entry>
+    <entry type="predatasource">
+        <version>1525130865</version>
+        <name>MicrosoftExchange_Server</name>
+        <displayedas>Server</displayedas>
+        <description>Microsoft Exchange Server - Server configuration details.</description>
+        <collector>script</collector>
+        <hasMultiInstances>false</hasMultiInstances>
+        <schedule>3600</schedule>
+        <appliesTo>hasCategory(&#34;MSExchange&#34;)</appliesTo>
+        <wildcardauto>false</wildcardauto>
+        <wildcardpersist>false</wildcardpersist>
+        <wildcardlinuxscript></wildcardlinuxscript>
+        <wildcardlinuxcmdline></wildcardlinuxcmdline>
+        <wildcardwinscript></wildcardwinscript>
+        <wildcardwincmdline></wildcardwincmdline>
+        <wildcardgroovyscript></wildcardgroovyscript>
+        <wildcardschedule>1440</wildcardschedule>
+        <wildcarddisable>false</wildcarddisable>
+        <wildcarddeleteinactive>false</wildcarddeleteinactive>
+        <agdmethod>none</agdmethod>
+        <agdparams></agdparams>
+        <group>Exchange Configs</group>
+        <tags></tags>
+        <technology>https://docs.microsoft.com/en-us/powershell/module/exchange/organization/get-exchangeserver?view=exchange-ps</technology>
+        <adlist><![CDATA[{"agdmethod":"none","agdparams":"","id":0,"filters":[],"params":{}}]]></adlist>
+        <schemaVersion>2</schemaVersion>
+        <dataSourceType>2</dataSourceType>
+        <attributes>
+        <attribute>
+            <name>scripttype</name>
+            <value>powerShell</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>scriptgroovy</name>
+            <value>#Script version 4.1 - better credential detection, integrated authentication, with commenting for usability
+
+#Format width of output
+mode con cols=120
+
+#Ingest hostname and credentials (if present) from LogicMonitor device properties
+$hostname = &#34;##SYSTEM.SYSNAME##&#34;;
+$wmi_user = &#34;##WMI.USER##&#34;;
+$wmi_pass = &#34;##WMI.PASS##&#34;;
+
+#Are WMI user/ pass set? -- e.g. are these device properties blank - or is there something useful present?
+if ( (($wmi_user -like &#39;*WMI.USER*&#39;) -and ($wmi_pass -like &#39;*WMI.PASS*&#39;)) -or (($wmi_user -eq &#39;&#39;) -and ($wmi_pass -eq &#39;&#39;)) )
+{
+    $use_credentials = $FALSE;
+    $method = &#34;Invoke-Command&#34;;
+}   
+
+else
+{
+    #Convert user/ password into a credential object
+    $use_credentials = $TRUE;
+    $method = &#34;Import-PSSession&#34;;
+
+    $remote_pass       = ConvertTo-SecureString -String $wmi_pass -AsPlainText -Force;
+    $remote_credential = New-Object -typename System.Management.Automation.PSCredential -argumentlist $wmi_user, $remote_pass;
+}
+
+#If we found credentials above, we will use them
+if ( $use_credentials ) {
+    #Establish a persistent session and import commands to the local collector
+    $session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://$hostname/PowerShell/ -Authentication Kerberos -Credential $remote_credential;
+
+    Import-PSSession $session -CommandName Get-ExchangeServer -AllowClobber | Out-Null;
+
+    #Execute remote commands from the local collector
+    Get-ExchangeServer | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID | Format-List
+
+    Write-host &#34;Remote PowerShell via&#34; $method
+    
+    Remove-PSSession $session
+    
+    Exit
+}
+else {
+    #Attempt integrated authentication using collector service account in the absence of credentials
+    $session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://$hostname/PowerShell/ -Authentication Kerberos
+
+    $servers = Invoke-Command -Session $session -ScriptBlock { 
+        Get-ExchangeServer 
+    }
+
+    $servers | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID
+    
+    Write-host &#34;Remote PowerShell via&#34; $method
+
+    Remove-PSSession $session
+
+    Exit
+        
+}
+
+Exit</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowsscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowscmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxcmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>csfileformat</name>
+            <value>arbitrary</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>cstimestampformat</name>
+            <value>yyyy-MM-dd hh:mm:ss z</value>
+            <comment></comment>
+        </attribute>
+        </attributes>
+        <datapoints>
+        <datapoint>
+            <name>AnyChange</name>
+            <dataType>1</dataType>
+            <type>2</type>
+            <postprocessormethod>none</postprocessormethod>
+            <postprocessorparam>{&#34;format&#34;:&#34;arbitrary&#34;,&#34;diff_check&#34;:{}}</postprocessorparam>
+            <usevalue></usevalue>
+            <alertexpr>= 1</alertexpr>
+            <alertmissing>1</alertmissing>
+            <alertsubject></alertsubject>
+            <alertbody></alertbody>
+            <description>A change was detected in the configuration of Microsoft Exchange Server.</description>
+            <maxvalue>1</maxvalue>
+            <minvalue>0</minvalue>
+            <userparam1>ignore</userparam1>
+            <userparam2>true</userparam2>
+            <userparam3>60</userparam3>
+            <iscomposite>false</iscomposite>
+            <rpn></rpn>
+            <alertTransitionIval>0</alertTransitionIval>
+            <alertClearTransitionIval>0</alertClearTransitionIval>
+        </datapoint>
+        </datapoints>
+        <graphs>
+        </graphs>
+        <overviewgraphs>
+        </overviewgraphs>
+        <scripts>
+        </scripts>
+    </entry>
+    <entry type="predatasource">
+        <version>1525130765</version>
+        <name>MicrosoftExchange_OWAMailboxPolicy</name>
+        <displayedas>OWA Mailbox Policy</displayedas>
+        <description>Microsoft Exchange Server OWA Mailbox Policy details.</description>
+        <collector>script</collector>
+        <hasMultiInstances>false</hasMultiInstances>
+        <schedule>3600</schedule>
+        <appliesTo>hasCategory(&#34;MSExchange&#34;)</appliesTo>
+        <wildcardauto>false</wildcardauto>
+        <wildcardpersist>false</wildcardpersist>
+        <wildcardlinuxscript></wildcardlinuxscript>
+        <wildcardlinuxcmdline></wildcardlinuxcmdline>
+        <wildcardwinscript></wildcardwinscript>
+        <wildcardwincmdline></wildcardwincmdline>
+        <wildcardgroovyscript></wildcardgroovyscript>
+        <wildcardschedule>1440</wildcardschedule>
+        <wildcarddisable>false</wildcarddisable>
+        <wildcarddeleteinactive>false</wildcarddeleteinactive>
+        <agdmethod>none</agdmethod>
+        <agdparams></agdparams>
+        <group>Exchange Configs</group>
+        <tags></tags>
+        <technology>https://docs.microsoft.com/en-us/powershell/module/exchange/client-access/get-owamailboxpolicy?view=exchange-ps</technology>
+        <adlist><![CDATA[{"agdmethod":"none","agdparams":"","id":0,"filters":[],"params":{}}]]></adlist>
+        <schemaVersion>2</schemaVersion>
+        <dataSourceType>2</dataSourceType>
+        <attributes>
+        <attribute>
+            <name>scripttype</name>
+            <value>powerShell</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>scriptgroovy</name>
+            <value>#Script version 4.1 - better credential detection, integrated authentication, with commenting for usability
+
+#Format width of output
+mode con cols=120
+
+#Ingest hostname and credentials (if present) from LogicMonitor device properties
+$hostname = &#34;##SYSTEM.SYSNAME##&#34;;
+$wmi_user = &#34;##WMI.USER##&#34;;
+$wmi_pass = &#34;##WMI.PASS##&#34;;
+
+#Are WMI user/ pass set? -- e.g. are these device properties blank - or is there something useful present?
+if ( (($wmi_user -like &#39;*WMI.USER*&#39;) -and ($wmi_pass -like &#39;*WMI.PASS*&#39;)) -or (($wmi_user -eq &#39;&#39;) -and ($wmi_pass -eq &#39;&#39;)) )
+{
+    $use_credentials = $FALSE;
+    $method = &#34;Invoke-Command&#34;;
+}   
+
+else
+{
+    #Convert user/ password into a credential object
+    $use_credentials = $TRUE;
+    $method = &#34;Import-PSSession&#34;;
+
+    $remote_pass       = ConvertTo-SecureString -String $wmi_pass -AsPlainText -Force;
+    $remote_credential = New-Object -typename System.Management.Automation.PSCredential -argumentlist $wmi_user, $remote_pass;
+}
+
+#If we found credentials above, we will use them
+if ( $use_credentials ) {
+    #Establish a persistent session and import commands to the local collector
+    $session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://$hostname/PowerShell/ -Authentication Kerberos -Credential $remote_credential;
+
+    Import-PSSession $session -CommandName Get-OWAMailboxPolicy -AllowClobber | Out-Null;
+
+    #Execute remote commands from the local collector
+    Get-OWAMailboxPolicy | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID | Format-List
+
+    Write-host &#34;Remote PowerShell via&#34; $method
+    
+    Remove-PSSession $session
+    
+    Exit
+}
+else {
+    #Attempt integrated authentication using collector service account in the absence of credentials
+    $session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://$hostname/PowerShell/ -Authentication Kerberos
+
+    $policy = Invoke-Command -Session $session -ScriptBlock { 
+        Get-OWAMailboxPolicy 
+    }
+
+    $policy | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID
+    
+    Write-host &#34;Remote PowerShell via&#34; $method
+
+    Remove-PSSession $session
+
+    Exit
+        
+}
+
+Exit</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowsscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowscmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxcmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>csfileformat</name>
+            <value>arbitrary</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>cstimestampformat</name>
+            <value>yyyy-MM-dd hh:mm:ss z</value>
+            <comment></comment>
+        </attribute>
+        </attributes>
+        <datapoints>
+        <datapoint>
+            <name>AnyChange</name>
+            <dataType>1</dataType>
+            <type>2</type>
+            <postprocessormethod>none</postprocessormethod>
+            <postprocessorparam>{&#34;format&#34;:&#34;arbitrary&#34;,&#34;diff_check&#34;:{}}</postprocessorparam>
+            <usevalue></usevalue>
+            <alertexpr>= 1</alertexpr>
+            <alertmissing>1</alertmissing>
+            <alertsubject></alertsubject>
+            <alertbody></alertbody>
+            <description>A change was detected in the Microsoft Exchange Server OWA Mailbox Policy.</description>
+            <maxvalue>1</maxvalue>
+            <minvalue>0</minvalue>
+            <userparam1>ignore</userparam1>
+            <userparam2>true</userparam2>
+            <userparam3>60</userparam3>
+            <iscomposite>false</iscomposite>
+            <rpn></rpn>
+            <alertTransitionIval>0</alertTransitionIval>
+            <alertClearTransitionIval>0</alertClearTransitionIval>
+        </datapoint>
+        </datapoints>
+        <graphs>
+        </graphs>
+        <overviewgraphs>
+        </overviewgraphs>
+        <scripts>
+        </scripts>
+    </entry>
+    <entry type="predatasource">
+        <version>1525130701</version>
+        <name>MicrosoftExchange_Organization</name>
+        <displayedas>Organization</displayedas>
+        <description>Microsoft Exchange Organization configuration details.</description>
+        <collector>script</collector>
+        <hasMultiInstances>false</hasMultiInstances>
+        <schedule>3600</schedule>
+        <appliesTo>hasCategory(&#34;MSExchange&#34;)</appliesTo>
+        <wildcardauto>false</wildcardauto>
+        <wildcardpersist>false</wildcardpersist>
+        <wildcardlinuxscript></wildcardlinuxscript>
+        <wildcardlinuxcmdline></wildcardlinuxcmdline>
+        <wildcardwinscript></wildcardwinscript>
+        <wildcardwincmdline></wildcardwincmdline>
+        <wildcardgroovyscript></wildcardgroovyscript>
+        <wildcardschedule>1440</wildcardschedule>
+        <wildcarddisable>false</wildcarddisable>
+        <wildcarddeleteinactive>false</wildcarddeleteinactive>
+        <agdmethod>none</agdmethod>
+        <agdparams></agdparams>
+        <group>Exchange Configs</group>
+        <tags></tags>
+        <technology>https://docs.microsoft.com/en-us/powershell/module/exchange/organization/get-organizationconfig?view=exchange-ps</technology>
+        <adlist><![CDATA[{"agdmethod":"none","agdparams":"","id":0,"filters":[],"params":{}}]]></adlist>
+        <schemaVersion>2</schemaVersion>
+        <dataSourceType>2</dataSourceType>
+        <attributes>
+        <attribute>
+            <name>scripttype</name>
+            <value>powerShell</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>scriptgroovy</name>
+            <value>#Script version 4.1 - better credential detection, integrated authentication, with commenting for usability
+
+#Format width of output
+mode con cols=120
+
+#Ingest hostname and credentials (if present) from LogicMonitor device properties
+$hostname = &#34;##SYSTEM.SYSNAME##&#34;;
+$wmi_user = &#34;##WMI.USER##&#34;;
+$wmi_pass = &#34;##WMI.PASS##&#34;;
+
+#Are WMI user/ pass set? -- e.g. are these device properties blank - or is there something useful present?
+if ( (($wmi_user -like &#39;*WMI.USER*&#39;) -and ($wmi_pass -like &#39;*WMI.PASS*&#39;)) -or (($wmi_user -eq &#39;&#39;) -and ($wmi_pass -eq &#39;&#39;)) )
+{
+    $use_credentials = $FALSE;
+    $method = &#34;Invoke-Command&#34;;
+}   
+
+else
+{
+    #Convert user/ password into a credential object
+    $use_credentials = $TRUE;
+    $method = &#34;Import-PSSession&#34;;
+
+    $remote_pass       = ConvertTo-SecureString -String $wmi_pass -AsPlainText -Force;
+    $remote_credential = New-Object -typename System.Management.Automation.PSCredential -argumentlist $wmi_user, $remote_pass;
+}
+
+#If we found credentials above, we will use them
+if ( $use_credentials ) {
+    #Establish a persistent session and import commands to the local collector
+    $session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://$hostname/PowerShell/ -Authentication Kerberos -Credential $remote_credential;
+
+    Import-PSSession $session -CommandName Get-OrganizationConfig -AllowClobber | Out-Null;
+
+    #Execute remote commands from the local collector
+    Get-OrganizationConfig | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID | Format-List
+
+    Write-host &#34;Remote PowerShell via&#34; $method
+    
+    Remove-PSSession $session
+    
+    Exit
+}
+else {
+    #Attempt integrated authentication using collector service account in the absence of credentials
+    $session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://$hostname/PowerShell/ -Authentication Kerberos
+
+    $organization = Invoke-Command -Session $session -ScriptBlock { 
+        Get-OrganizationConfig 
+    }
+
+    $organization | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID
+    
+    Write-host &#34;Remote PowerShell via&#34; $method
+
+    Remove-PSSession $session
+
+    Exit
+        
+}
+
+Exit</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowsscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowscmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxcmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>csfileformat</name>
+            <value>arbitrary</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>cstimestampformat</name>
+            <value>yyyy-MM-dd hh:mm:ss z</value>
+            <comment></comment>
+        </attribute>
+        </attributes>
+        <datapoints>
+        <datapoint>
+            <name>AnyChange</name>
+            <dataType>1</dataType>
+            <type>2</type>
+            <postprocessormethod>none</postprocessormethod>
+            <postprocessorparam>{&#34;format&#34;:&#34;arbitrary&#34;,&#34;diff_check&#34;:{}}</postprocessorparam>
+            <usevalue></usevalue>
+            <alertexpr>= 1</alertexpr>
+            <alertmissing>1</alertmissing>
+            <alertsubject></alertsubject>
+            <alertbody></alertbody>
+            <description>A change was detected in the configuration of the Microsoft Exchange Organization.</description>
+            <maxvalue>1</maxvalue>
+            <minvalue>0</minvalue>
+            <userparam1>ignore</userparam1>
+            <userparam2>true</userparam2>
+            <userparam3>60</userparam3>
+            <iscomposite>false</iscomposite>
+            <rpn></rpn>
+            <alertTransitionIval>0</alertTransitionIval>
+            <alertClearTransitionIval>0</alertClearTransitionIval>
+        </datapoint>
+        </datapoints>
+        <graphs>
+        </graphs>
+        <overviewgraphs>
+        </overviewgraphs>
+        <scripts>
+        </scripts>
+    </entry>
+    <entry type="predatasource">
+        <version>1525130676</version>
+        <name>MicrosoftExchange_MobileDeviceMailboxPolicy</name>
+        <displayedas>Mobile Device Mailbox Policy</displayedas>
+        <description>Microsoft Exchange Server Mobile Device Mailbox Policy details.</description>
+        <collector>script</collector>
+        <hasMultiInstances>false</hasMultiInstances>
+        <schedule>3600</schedule>
+        <appliesTo>hasCategory(&#34;MSExchange&#34;)</appliesTo>
+        <wildcardauto>false</wildcardauto>
+        <wildcardpersist>false</wildcardpersist>
+        <wildcardlinuxscript></wildcardlinuxscript>
+        <wildcardlinuxcmdline></wildcardlinuxcmdline>
+        <wildcardwinscript></wildcardwinscript>
+        <wildcardwincmdline></wildcardwincmdline>
+        <wildcardgroovyscript></wildcardgroovyscript>
+        <wildcardschedule>1440</wildcardschedule>
+        <wildcarddisable>false</wildcarddisable>
+        <wildcarddeleteinactive>false</wildcarddeleteinactive>
+        <agdmethod>none</agdmethod>
+        <agdparams></agdparams>
+        <group>Exchange Configs</group>
+        <tags></tags>
+        <technology>https://docs.microsoft.com/en-us/powershell/module/exchange/devices/get-mobiledevicemailboxpolicy?view=exchange-ps</technology>
+        <adlist><![CDATA[{"agdmethod":"none","agdparams":"","id":0,"filters":[],"params":{}}]]></adlist>
+        <schemaVersion>2</schemaVersion>
+        <dataSourceType>2</dataSourceType>
+        <attributes>
+        <attribute>
+            <name>scripttype</name>
+            <value>powerShell</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>scriptgroovy</name>
+            <value>#Script version 4.1 - better credential detection, integrated authentication, with commenting for usability
+
+#Format width of output
+mode con cols=120
+
+#Ingest hostname and credentials (if present) from LogicMonitor device properties
+$hostname = &#34;##SYSTEM.SYSNAME##&#34;;
+$wmi_user = &#34;##WMI.USER##&#34;;
+$wmi_pass = &#34;##WMI.PASS##&#34;;
+
+#Are WMI user/ pass set? -- e.g. are these device properties blank - or is there something useful present?
+if ( (($wmi_user -like &#39;*WMI.USER*&#39;) -and ($wmi_pass -like &#39;*WMI.PASS*&#39;)) -or (($wmi_user -eq &#39;&#39;) -and ($wmi_pass -eq &#39;&#39;)) )
+{
+    $use_credentials = $FALSE;
+    $method = &#34;Invoke-Command&#34;;
+}   
+
+else
+{
+    #Convert user/ password into a credential object
+    $use_credentials = $TRUE;
+    $method = &#34;Import-PSSession&#34;;
+
+    $remote_pass       = ConvertTo-SecureString -String $wmi_pass -AsPlainText -Force;
+    $remote_credential = New-Object -typename System.Management.Automation.PSCredential -argumentlist $wmi_user, $remote_pass;
+}
+
+#If we found credentials above, we will use them
+if ( $use_credentials ) {
+    #Establish a persistent session and import commands to the local collector
+    $session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://$hostname/PowerShell/ -Authentication Kerberos -Credential $remote_credential;
+
+    Import-PSSession $session -CommandName Get-MobileDeviceMailboxPolicy -AllowClobber | Out-Null;
+
+    #Execute remote commands from the local collector
+    Get-MobileDeviceMailboxPolicy | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID | Format-List
+
+    Write-host &#34;Remote PowerShell via&#34; $method
+    
+    Remove-PSSession $session
+    
+    Exit
+}
+else {
+    #Attempt integrated authentication using collector service account in the absence of credentials
+    $session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://$hostname/PowerShell/ -Authentication Kerberos
+
+    $policy = Invoke-Command -Session $session -ScriptBlock { 
+        Get-MobileDeviceMailboxPolicy 
+    }
+
+    $policy | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID
+    
+    Write-host &#34;Remote PowerShell via&#34; $method
+
+    Remove-PSSession $session
+
+    Exit
+        
+}
+
+Exit</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowsscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowscmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxcmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>csfileformat</name>
+            <value>arbitrary</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>cstimestampformat</name>
+            <value>yyyy-MM-dd hh:mm:ss z</value>
+            <comment></comment>
+        </attribute>
+        </attributes>
+        <datapoints>
+        <datapoint>
+            <name>AnyChange</name>
+            <dataType>1</dataType>
+            <type>2</type>
+            <postprocessormethod>none</postprocessormethod>
+            <postprocessorparam>{&#34;format&#34;:&#34;arbitrary&#34;,&#34;diff_check&#34;:{}}</postprocessorparam>
+            <usevalue></usevalue>
+            <alertexpr>= 1</alertexpr>
+            <alertmissing>1</alertmissing>
+            <alertsubject></alertsubject>
+            <alertbody></alertbody>
+            <description>A change was detected in the Microsoft Exchange Server Mobile Device Mailbox Policy.</description>
+            <maxvalue>1</maxvalue>
+            <minvalue>0</minvalue>
+            <userparam1>ignore</userparam1>
+            <userparam2>true</userparam2>
+            <userparam3>60</userparam3>
+            <iscomposite>false</iscomposite>
+            <rpn></rpn>
+            <alertTransitionIval>0</alertTransitionIval>
+            <alertClearTransitionIval>0</alertClearTransitionIval>
+        </datapoint>
+        </datapoints>
+        <graphs>
+        </graphs>
+        <overviewgraphs>
+        </overviewgraphs>
+        <scripts>
+        </scripts>
+    </entry>
+    <entry type="predatasource">
+        <version>1525130654</version>
+        <name>MicrosoftExchange_ContentFilter</name>
+        <displayedas>Content Filter</displayedas>
+        <description>Microsoft Exchange Server Content Filter configuration details.</description>
+        <collector>script</collector>
+        <hasMultiInstances>false</hasMultiInstances>
+        <schedule>3600</schedule>
+        <appliesTo>hasCategory(&#34;MSExchange&#34;)</appliesTo>
+        <wildcardauto>false</wildcardauto>
+        <wildcardpersist>false</wildcardpersist>
+        <wildcardlinuxscript></wildcardlinuxscript>
+        <wildcardlinuxcmdline></wildcardlinuxcmdline>
+        <wildcardwinscript></wildcardwinscript>
+        <wildcardwincmdline></wildcardwincmdline>
+        <wildcardgroovyscript></wildcardgroovyscript>
+        <wildcardschedule>1440</wildcardschedule>
+        <wildcarddisable>false</wildcarddisable>
+        <wildcarddeleteinactive>false</wildcarddeleteinactive>
+        <agdmethod>none</agdmethod>
+        <agdparams></agdparams>
+        <group>Exchange Configs</group>
+        <tags></tags>
+        <technology>https://docs.microsoft.com/en-us/powershell/module/exchange/antispam-antimalware/get-contentfilterconfig?view=exchange-ps</technology>
+        <adlist><![CDATA[{"agdmethod":"none","agdparams":"","id":0,"filters":[],"params":{}}]]></adlist>
+        <schemaVersion>2</schemaVersion>
+        <dataSourceType>2</dataSourceType>
+        <attributes>
+        <attribute>
+            <name>scripttype</name>
+            <value>powerShell</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>scriptgroovy</name>
+            <value>#Script version 4.1 - better credential detection, integrated authentication, with commenting for usability
+
+#Format width of output
+mode con cols=120
+
+#Ingest hostname and credentials (if present) from LogicMonitor device properties
+$hostname = &#34;##SYSTEM.SYSNAME##&#34;;
+$wmi_user = &#34;##WMI.USER##&#34;;
+$wmi_pass = &#34;##WMI.PASS##&#34;;
+
+#Are WMI user/ pass set? -- e.g. are these device properties blank - or is there something useful present?
+if ( (($wmi_user -like &#39;*WMI.USER*&#39;) -and ($wmi_pass -like &#39;*WMI.PASS*&#39;)) -or (($wmi_user -eq &#39;&#39;) -and ($wmi_pass -eq &#39;&#39;)) )
+{
+    $use_credentials = $FALSE;
+    $method = &#34;Invoke-Command&#34;;
+}   
+
+else
+{
+    #Convert user/ password into a credential object
+    $use_credentials = $TRUE;
+    $method = &#34;Import-PSSession&#34;;
+
+    $remote_pass       = ConvertTo-SecureString -String $wmi_pass -AsPlainText -Force;
+    $remote_credential = New-Object -typename System.Management.Automation.PSCredential -argumentlist $wmi_user, $remote_pass;
+}
+
+#If we found credentials above, we will use them
+if ( $use_credentials ) {
+    #Establish a persistent session and import commands to the local collector
+    $session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://$hostname/PowerShell/ -Authentication Kerberos -Credential $remote_credential;
+
+    Import-PSSession $session -CommandName Get-ContentFilterConfig -AllowClobber | Out-Null;
+
+    #Execute remote commands from the local collector
+    Get-ContentFilterConfig | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID | Format-List
+
+    Write-host &#34;Remote PowerShell via&#34; $method
+    
+    Remove-PSSession $session
+    
+    Exit
+}
+else {
+    #Attempt integrated authentication using collector service account in the absence of credentials
+    $session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://$hostname/PowerShell/ -Authentication Kerberos
+
+    $content = Invoke-Command -Session $session -ScriptBlock { 
+        Get-ContentFilterConfig 
+    }
+
+    $content | Select-Object -Property * -ExcludeProperty PSComputerName,RunspaceID
+    
+    Write-host &#34;Remote PowerShell via&#34; $method
+
+    Remove-PSSession $session
+
+    Exit
+        
+}
+
+Exit</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowsscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowscmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxcmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>csfileformat</name>
+            <value>arbitrary</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>cstimestampformat</name>
+            <value>yyyy-MM-dd hh:mm:ss z</value>
+            <comment></comment>
+        </attribute>
+        </attributes>
+        <datapoints>
+        <datapoint>
+            <name>AnyChange</name>
+            <dataType>1</dataType>
+            <type>2</type>
+            <postprocessormethod>none</postprocessormethod>
+            <postprocessorparam>{&#34;format&#34;:&#34;arbitrary&#34;,&#34;diff_check&#34;:{}}</postprocessorparam>
+            <usevalue></usevalue>
+            <alertexpr>= 1</alertexpr>
+            <alertmissing>1</alertmissing>
+            <alertsubject></alertsubject>
+            <alertbody></alertbody>
+            <description>A change was detected in the Microsoft Exchange Server Content Filter configuration.</description>
+            <maxvalue>1</maxvalue>
+            <minvalue>0</minvalue>
+            <userparam1>ignore</userparam1>
+            <userparam2>true</userparam2>
+            <userparam3>60</userparam3>
+            <iscomposite>false</iscomposite>
+            <rpn></rpn>
+            <alertTransitionIval>0</alertTransitionIval>
+            <alertClearTransitionIval>0</alertClearTransitionIval>
+        </datapoint>
+        </datapoints>
+        <graphs>
+        </graphs>
+        <overviewgraphs>
+        </overviewgraphs>
+        <scripts>
+        </scripts>
+    </entry>
+</feed>

@@ -1,0 +1,467 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<feed  version="1.0" hasPendingRequests="false" >
+	<company></company>
+	<status>200</status>
+	<errmsg>OK</errmsg>
+	<interval>0</interval>
+    <entry type="predatasource">
+        <version>1524845600</version>
+        <name>MicrosoftDHCP_IPV4Scopes</name>
+        <displayedas>Scopes</displayedas>
+        <description>List all Microsoft DHCP Server Scopes.</description>
+        <collector>script</collector>
+        <hasMultiInstances>false</hasMultiInstances>
+        <schedule>3600</schedule>
+        <appliesTo>hasCategory(&#34;Windows_DHCP&#34;)</appliesTo>
+        <wildcardauto>false</wildcardauto>
+        <wildcardpersist>false</wildcardpersist>
+        <wildcardlinuxscript></wildcardlinuxscript>
+        <wildcardlinuxcmdline></wildcardlinuxcmdline>
+        <wildcardwinscript></wildcardwinscript>
+        <wildcardwincmdline></wildcardwincmdline>
+        <wildcardgroovyscript></wildcardgroovyscript>
+        <wildcardschedule>1440</wildcardschedule>
+        <wildcarddisable>false</wildcarddisable>
+        <wildcarddeleteinactive>false</wildcarddeleteinactive>
+        <agdmethod>none</agdmethod>
+        <agdparams></agdparams>
+        <group>DHCP Server Configs</group>
+        <tags></tags>
+        <technology>https://docs.microsoft.com/en-us/powershell/module/dhcpserver/get-dhcpserverv4scope</technology>
+        <adlist><![CDATA[{"agdmethod":"none","agdparams":"","id":0,"filters":[],"params":{}}]]></adlist>
+        <schemaVersion>2</schemaVersion>
+        <dataSourceType>2</dataSourceType>
+        <attributes>
+        <attribute>
+            <name>scripttype</name>
+            <value>powerShell</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>scriptgroovy</name>
+            <value>#script version 4.0 - better credential detection and integrated authentication - commented for usability
+
+#Ingest hostname and credentials (if present) from LogicMonitor
+$hostname = &#34;##SYSTEM.SYSNAME##&#34;;
+$wmi_user = &#34;##WMI.USER##&#34;;
+$wmi_pass = &#34;##WMI.PASS##&#34;;
+
+#Are wmi user/ pass set? -- e.g. are these device properties blank - or is there something useful present?
+if ( (($wmi_user -like &#39;*WMI.USER*&#39;) -and ($wmi_pass -like &#39;*WMI.PASS*&#39;)) -or (($wmi_user -eq &#39;&#39;) -and ($wmi_pass -eq &#39;&#39;)) )
+{
+    $use_credentials = $FALSE;
+    $method = &#34;Invoke-Command&#34;;
+}
+
+else
+{
+    # convert user/ password into a credential object
+    $use_credentials = $TRUE;
+    $method = &#34;Import-PSSession&#34;;
+
+    $remote_pass       = ConvertTo-SecureString -String $wmi_pass -AsPlainText -Force;
+    $remote_credential = New-Object -typename System.Management.Automation.PSCredential -argumentlist $wmi_user, $remote_pass;
+}
+
+#If we found credentials above, we will use them
+if ( $use_credentials ) {
+    #establish a persistent session and import commands to the local collector
+    $session = New-PSSession -ComputerName $hostname -authentication kerberos -Credential $remote_credential;
+    Import-PSSession $session -CommandName Get-DhcpServerv4Scope -AllowClobber | Out-Null;
+
+    #Retrieve the list of AD Groups on the server
+    $scopes = Get-DhcpServerv4Scope | Format-List
+
+    $scopes
+
+    Write-host &#34;Remote PowerShell via&#34; $method
+    
+    Remove-PSSession $session
+    
+    exit
+}
+else {
+    #try integrated authentication when we don&#39;t detect credentials
+    $scopes = Invoke-Command -ComputerName $hostname -ScriptBlock {
+        Get-DhcpServerv4Scope | Format-List
+    }
+        
+    $scopes
+
+    Write-host &#34;Remote PowerShell via&#34; $method
+        
+}
+
+Exit</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowsscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowscmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxcmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>csfileformat</name>
+            <value>arbitrary</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>cstimestampformat</name>
+            <value>yyyy-MM-dd hh:mm:ss z</value>
+            <comment></comment>
+        </attribute>
+        </attributes>
+        <datapoints>
+        <datapoint>
+            <name>cannotRetrieve</name>
+            <dataType>1</dataType>
+            <type>2</type>
+            <postprocessormethod>none</postprocessormethod>
+            <postprocessorparam>{&#34;fetch_check&#34;:{},&#34;format&#34;:&#34;arbitrary&#34;}</postprocessorparam>
+            <usevalue></usevalue>
+            <alertexpr>= 1</alertexpr>
+            <alertmissing>1</alertmissing>
+            <alertsubject></alertsubject>
+            <alertbody></alertbody>
+            <description>We were unable to retrieve the output for Microsoft DHCP Server Scopes.</description>
+            <maxvalue>1</maxvalue>
+            <minvalue>0</minvalue>
+            <userparam1>fetch</userparam1>
+            <userparam2>false</userparam2>
+            <userparam3>0</userparam3>
+            <iscomposite>false</iscomposite>
+            <rpn></rpn>
+            <alertTransitionIval>0</alertTransitionIval>
+            <alertClearTransitionIval>0</alertClearTransitionIval>
+        </datapoint>
+        </datapoints>
+        <graphs>
+        </graphs>
+        <overviewgraphs>
+        </overviewgraphs>
+        <scripts>
+        </scripts>
+    </entry>
+    <entry type="predatasource">
+        <version>1524845544</version>
+        <name>MicrosoftDHCP_IPV4Options</name>
+        <displayedas>Options</displayedas>
+        <description>List all Microsoft DHCP Server Options.</description>
+        <collector>script</collector>
+        <hasMultiInstances>false</hasMultiInstances>
+        <schedule>3600</schedule>
+        <appliesTo>hasCategory(&#34;Windows_DHCP&#34;)</appliesTo>
+        <wildcardauto>false</wildcardauto>
+        <wildcardpersist>false</wildcardpersist>
+        <wildcardlinuxscript></wildcardlinuxscript>
+        <wildcardlinuxcmdline></wildcardlinuxcmdline>
+        <wildcardwinscript></wildcardwinscript>
+        <wildcardwincmdline></wildcardwincmdline>
+        <wildcardgroovyscript></wildcardgroovyscript>
+        <wildcardschedule>1440</wildcardschedule>
+        <wildcarddisable>false</wildcarddisable>
+        <wildcarddeleteinactive>false</wildcarddeleteinactive>
+        <agdmethod>none</agdmethod>
+        <agdparams></agdparams>
+        <group>DHCP Server Configs</group>
+        <tags></tags>
+        <technology>https://docs.microsoft.com/en-us/powershell/module/dhcpserver/get-dhcpserverv4optiondefinition</technology>
+        <adlist><![CDATA[{"agdmethod":"none","agdparams":"","id":0,"filters":[],"params":{}}]]></adlist>
+        <schemaVersion>2</schemaVersion>
+        <dataSourceType>2</dataSourceType>
+        <attributes>
+        <attribute>
+            <name>scripttype</name>
+            <value>powerShell</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>scriptgroovy</name>
+            <value>#script version 4.0 - better credential detection and integrated authentication - commented for usability
+
+#Ingest hostname and credentials (if present) from LogicMonitor
+$hostname = &#34;##SYSTEM.SYSNAME##&#34;;
+$wmi_user = &#34;##WMI.USER##&#34;;
+$wmi_pass = &#34;##WMI.PASS##&#34;;
+
+#Are wmi user/ pass set? -- e.g. are these device properties blank - or is there something useful present?
+if ( (($wmi_user -like &#39;*WMI.USER*&#39;) -and ($wmi_pass -like &#39;*WMI.PASS*&#39;)) -or (($wmi_user -eq &#39;&#39;) -and ($wmi_pass -eq &#39;&#39;)) )
+{
+    $use_credentials = $FALSE;
+    $method = &#34;Invoke-Command&#34;;
+}
+
+else
+{
+    # convert user/ password into a credential object
+    $use_credentials = $TRUE;
+    $method = &#34;Import-PSSession&#34;;
+
+    $remote_pass       = ConvertTo-SecureString -String $wmi_pass -AsPlainText -Force;
+    $remote_credential = New-Object -typename System.Management.Automation.PSCredential -argumentlist $wmi_user, $remote_pass;
+}
+
+#If we found credentials above, we will use them
+if ( $use_credentials ) {
+    #establish a persistent session and import commands to the local collector
+    $session = New-PSSession -ComputerName $hostname -authentication kerberos -Credential $remote_credential;
+    Import-PSSession $session -CommandName Get-DhcpServerv4Scope -AllowClobber | Out-Null;
+
+    #Retrieve the list of AD Groups on the server
+    $options = Get-DhcpServerv4OptionDefinition | Format-List
+
+    $options
+
+    Write-host &#34;Remote PowerShell via&#34; $method
+    
+    Remove-PSSession $session
+    
+    exit
+}
+else {
+    #try integrated authentication when we don&#39;t detect credentials
+    $options = Invoke-Command -ComputerName $hostname -ScriptBlock {
+        Get-DhcpServerv4OptionDefinition | Format-List
+    }
+        
+    $options
+
+    Write-host &#34;Remote PowerShell via&#34; $method
+        
+}
+
+Exit</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowsscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowscmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxcmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>csfileformat</name>
+            <value>arbitrary</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>cstimestampformat</name>
+            <value>yyyy-MM-dd hh:mm:ss z</value>
+            <comment></comment>
+        </attribute>
+        </attributes>
+        <datapoints>
+        <datapoint>
+            <name>cannotRetrieve</name>
+            <dataType>1</dataType>
+            <type>2</type>
+            <postprocessormethod>none</postprocessormethod>
+            <postprocessorparam>{&#34;fetch_check&#34;:{},&#34;format&#34;:&#34;arbitrary&#34;}</postprocessorparam>
+            <usevalue></usevalue>
+            <alertexpr>= 1</alertexpr>
+            <alertmissing>1</alertmissing>
+            <alertsubject></alertsubject>
+            <alertbody></alertbody>
+            <description>We were unable to retrieve the output for Microsoft DHCP Server Options.</description>
+            <maxvalue>1</maxvalue>
+            <minvalue>0</minvalue>
+            <userparam1>fetch</userparam1>
+            <userparam2>false</userparam2>
+            <userparam3>0</userparam3>
+            <iscomposite>false</iscomposite>
+            <rpn></rpn>
+            <alertTransitionIval>0</alertTransitionIval>
+            <alertClearTransitionIval>0</alertClearTransitionIval>
+        </datapoint>
+        </datapoints>
+        <graphs>
+        </graphs>
+        <overviewgraphs>
+        </overviewgraphs>
+        <scripts>
+        </scripts>
+    </entry>
+    <entry type="predatasource">
+        <version>1524845527</version>
+        <name>MicrosoftDHCP_IPV4Leases</name>
+        <displayedas>Leases</displayedas>
+        <description>List all Microsoft DHCP Server Leases.</description>
+        <collector>script</collector>
+        <hasMultiInstances>false</hasMultiInstances>
+        <schedule>3600</schedule>
+        <appliesTo>hasCategory(&#34;Windows_DHCP&#34;)</appliesTo>
+        <wildcardauto>false</wildcardauto>
+        <wildcardpersist>false</wildcardpersist>
+        <wildcardlinuxscript></wildcardlinuxscript>
+        <wildcardlinuxcmdline></wildcardlinuxcmdline>
+        <wildcardwinscript></wildcardwinscript>
+        <wildcardwincmdline></wildcardwincmdline>
+        <wildcardgroovyscript></wildcardgroovyscript>
+        <wildcardschedule>1440</wildcardschedule>
+        <wildcarddisable>false</wildcarddisable>
+        <wildcarddeleteinactive>false</wildcarddeleteinactive>
+        <agdmethod>none</agdmethod>
+        <agdparams></agdparams>
+        <group>DHCP Server Configs</group>
+        <tags></tags>
+        <technology>https://docs.microsoft.com/en-us/powershell/module/dhcpserver/get-dhcpserverv4scope
+https://docs.microsoft.com/en-us/powershell/module/dhcpserver/get-dhcpserverv4lease</technology>
+        <adlist><![CDATA[{"agdmethod":"none","agdparams":"","id":0,"filters":[],"params":{}}]]></adlist>
+        <schemaVersion>2</schemaVersion>
+        <dataSourceType>2</dataSourceType>
+        <attributes>
+        <attribute>
+            <name>scripttype</name>
+            <value>powerShell</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>scriptgroovy</name>
+            <value>#script version 4.0 - better credential detection and integrated authentication - commented for usability
+
+#Ingest hostname and credentials (if present) from LogicMonitor
+$hostname = &#34;##SYSTEM.SYSNAME##&#34;;
+$wmi_user = &#34;##WMI.USER##&#34;;
+$wmi_pass = &#34;##WMI.PASS##&#34;;
+
+#Are wmi user/ pass set? -- e.g. are these device properties blank - or is there something useful present?
+if ( (($wmi_user -like &#39;*WMI.USER*&#39;) -and ($wmi_pass -like &#39;*WMI.PASS*&#39;)) -or (($wmi_user -eq &#39;&#39;) -and ($wmi_pass -eq &#39;&#39;)) )
+{
+    $use_credentials = $FALSE;
+    $method = &#34;Invoke-Command&#34;;
+}
+
+else
+{
+    # convert user/ password into a credential object
+    $use_credentials = $TRUE;
+    $method = &#34;Import-PSSession&#34;;
+
+    $remote_pass       = ConvertTo-SecureString -String $wmi_pass -AsPlainText -Force;
+    $remote_credential = New-Object -typename System.Management.Automation.PSCredential -argumentlist $wmi_user, $remote_pass;
+}
+
+#If we found credentials above, we will use them
+if ( $use_credentials ) {
+    #establish a persistent session and import commands to the local collector
+    $session = New-PSSession -ComputerName $hostname -authentication kerberos -Credential $remote_credential;
+    Import-PSSession $session -CommandName Get-DhcpServerv4Scope -AllowClobber | Out-Null;
+
+    #Retrieve the list of AD Groups on the server
+    $leases = Get-DhcpServerv4Scope | Get-DhcpServerv4Lease | Format-Table
+
+    $leases
+
+    Write-host &#34;Remote PowerShell via&#34; $method
+    
+    Remove-PSSession $session
+    
+    exit
+}
+else {
+    #try integrated authentication when we don&#39;t detect credentials
+    $leases = Invoke-Command -ComputerName $hostname -ScriptBlock {
+        Get-DhcpServerv4Scope | Get-DhcpServerv4Lease | Format-Table
+    }
+        
+    $leases
+
+    Write-host &#34;Remote PowerShell via&#34; $method
+        
+}
+
+Exit</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowsscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowscmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxcmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>csfileformat</name>
+            <value>arbitrary</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>cstimestampformat</name>
+            <value>yyyy-MM-dd hh:mm:ss z</value>
+            <comment></comment>
+        </attribute>
+        </attributes>
+        <datapoints>
+        <datapoint>
+            <name>cannotRetrieve</name>
+            <dataType>1</dataType>
+            <type>2</type>
+            <postprocessormethod>none</postprocessormethod>
+            <postprocessorparam>{&#34;fetch_check&#34;:{},&#34;format&#34;:&#34;arbitrary&#34;}</postprocessorparam>
+            <usevalue></usevalue>
+            <alertexpr>= 1</alertexpr>
+            <alertmissing>1</alertmissing>
+            <alertsubject></alertsubject>
+            <alertbody></alertbody>
+            <description>We were unable to retrieve the output for Microsoft DHCP server leases.</description>
+            <maxvalue>1</maxvalue>
+            <minvalue>0</minvalue>
+            <userparam1>fetch</userparam1>
+            <userparam2>false</userparam2>
+            <userparam3>0</userparam3>
+            <iscomposite>false</iscomposite>
+            <rpn></rpn>
+            <alertTransitionIval>0</alertTransitionIval>
+            <alertClearTransitionIval>0</alertClearTransitionIval>
+        </datapoint>
+        </datapoints>
+        <graphs>
+        </graphs>
+        <overviewgraphs>
+        </overviewgraphs>
+        <scripts>
+        </scripts>
+    </entry>
+</feed>
