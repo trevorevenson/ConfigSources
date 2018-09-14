@@ -1,10 +1,10 @@
 # ConfigSources
 
-**Active Directory ConfigSource Suite - Installation Guide**
+**ConfigSource Suites - Installation Guide**
 
-Step 1: Import PropertySource from repository (if not a new account): addCategory_MicrosoftDomainController.
+Step 1: Make sure your PropertySources are up to date by importing from repository.
 
-Step 2: Import ConfigSources - which use the hasCategory("MicrosoftDomainController") AppliesTo.
+Step 2: Import ConfigSources - either individually or grouped (as outlined in the next section.)
 
 **Combined Configs:**
 
